@@ -18,6 +18,12 @@
         TextElement.FontSize="14"
         FontFamily="{materialDesign:MaterialDesignFont}">
 
+    <Window.TaskbarItemInfo>
+        <TaskbarItemInfo
+            ProgressValue="{Binding TaskbarProgress}"
+            ProgressState="{Binding TaskbarProgressState}" />
+    </Window.TaskbarItemInfo>
+
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
@@ -220,6 +226,24 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:DownloadItemViewModel}">
                             <Grid Margin="8,6">
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Open file"
+                                                  Command="{Binding OpenFileCommand}"
+                                                  IsEnabled="{Binding HasFile}">
+                                            <MenuItem.Icon>
+                                                <materialDesign:PackIcon Kind="FileMusic" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Show in Explorer"
+                                                  Command="{Binding ShowInExplorerCommand}"
+                                                  IsEnabled="{Binding HasFile}">
+                                            <MenuItem.Icon>
+                                                <materialDesign:PackIcon Kind="FolderOpen" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
@@ -311,15 +335,24 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <Button
-                Grid.Column="0"
-                Command="{Binding OpenLogFileCommand}"
-                Style="{StaticResource MaterialDesignToolButton}"
-                ToolTip="Open log file"
-                Padding="4" Height="28" Width="28"
-                Margin="0,0,8,0">
-                <materialDesign:PackIcon Kind="FileDocument" Width="16" Height="16" Opacity="0.5" />
-            </Button>
+            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                <Button
+                    Command="{Binding OpenDownloadFolderCommand}"
+                    Style="{StaticResource MaterialDesignToolButton}"
+                    ToolTip="Open download folder"
+                    Padding="4" Height="28" Width="28"
+                    Margin="0,0,4,0">
+                    <materialDesign:PackIcon Kind="FolderOpen" Width="16" Height="16" Opacity="0.5" />
+                </Button>
+                <Button
+                    Command="{Binding OpenLogFileCommand}"
+                    Style="{StaticResource MaterialDesignToolButton}"
+                    ToolTip="Open log file"
+                    Padding="4" Height="28" Width="28"
+                    Margin="0,0,8,0">
+                    <materialDesign:PackIcon Kind="FileDocument" Width="16" Height="16" Opacity="0.5" />
+                </Button>
+            </StackPanel>
 
             <TextBlock
                 Grid.Column="1"

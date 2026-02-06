@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Windows.Shell;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -47,6 +48,10 @@ public partial class MainViewModel : ObservableObject
     public double OverallProgress => TotalCount > 0
         ? (double)CompletedCount / TotalCount * 100
         : 0;
+
+    public double TaskbarProgress => OverallProgress / 100.0;
+    public TaskbarItemProgressState TaskbarProgressState =>
+        IsDownloading ? TaskbarItemProgressState.Normal : TaskbarItemProgressState.None;
 
     public MainViewModel()
     {
@@ -172,6 +177,7 @@ public partial class MainViewModel : ObservableObject
 
         OnPropertyChanged(nameof(CompletedCount));
         OnPropertyChanged(nameof(OverallProgress));
+        OnPropertyChanged(nameof(TaskbarProgress));
 
         // Check if done
         if (!_downloadService.IsRunning)
@@ -194,7 +200,11 @@ public partial class MainViewModel : ObservableObject
     private bool CanStartDownload() => !IsDownloading && !string.IsNullOrWhiteSpace(SearchInput);
 
     partial void OnSearchInputChanged(string value) => StartDownloadCommand.NotifyCanExecuteChanged();
-    partial void OnIsDownloadingChanged(bool value) => StartDownloadCommand.NotifyCanExecuteChanged();
+    partial void OnIsDownloadingChanged(bool value)
+    {
+        StartDownloadCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(TaskbarProgressState));
+    }
 
     [RelayCommand]
     private void StopDownload()
@@ -213,6 +223,7 @@ public partial class MainViewModel : ObservableObject
         IsDownloading = false;
         OnPropertyChanged(nameof(CompletedCount));
         OnPropertyChanged(nameof(OverallProgress));
+        OnPropertyChanged(nameof(TaskbarProgress));
         StatusText = $"Cancelled: {CompletedCount}/{TotalCount} tracks downloaded";
     }
 
@@ -229,6 +240,13 @@ public partial class MainViewModel : ObservableObject
         {
             DownloadPath = dialog.FolderName;
         }
+    }
+
+    [RelayCommand]
+    private void OpenDownloadFolder()
+    {
+        if (Directory.Exists(DownloadPath))
+            Process.Start(new ProcessStartInfo(DownloadPath) { UseShellExecute = true });
     }
 
     [RelayCommand]

@@ -19,6 +19,12 @@ public class DownloaderApplication
     private bool interceptKeys = false; // UI concern, move later?
     private event EventHandler<ConsoleKey>? keyPressed; // UI concern, move later?
 
+    private static bool ConsoleKeyAvailable()
+    {
+        try { return !Console.IsInputRedirected && Console.KeyAvailable; }
+        catch { return false; }
+    }
+
     private IExtractor? extractor = null;
     private Searcher? searchService = null;
     private readonly Config defaultConfig;
@@ -985,7 +991,7 @@ public class DownloaderApplication
 
         while (!completeFolderTask.IsCompleted)
         {
-            if (Console.KeyAvailable && !Console.IsInputRedirected)
+            if (ConsoleKeyAvailable())
             {
                 if (Console.ReadKey(true).Key == ConsoleKey.C)
                 {
@@ -1404,7 +1410,7 @@ public class DownloaderApplication
                     Logger.Error($"{ex.Message}");
                 }
 
-                if (interceptKeys && !Console.IsInputRedirected && Console.KeyAvailable)
+                if (interceptKeys && ConsoleKeyAvailable())
                 {
                     var key = Console.ReadKey(intercept: true).Key;
                     keyPressed?.Invoke(null, key);

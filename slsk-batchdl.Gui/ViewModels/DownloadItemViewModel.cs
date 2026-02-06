@@ -1,4 +1,7 @@
+using System.Diagnostics;
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Enums;
 using Models;
 
@@ -133,6 +136,11 @@ public partial class DownloadItemViewModel : ObservableObject
         OnPropertyChanged(nameof(IsActive));
     }
 
+    partial void OnFilePathChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasFile));
+    }
+
     partial void OnProgressPercentChanged(double value)
     {
         OnPropertyChanged(nameof(StatusDisplay));
@@ -176,5 +184,21 @@ public partial class DownloadItemViewModel : ObservableObject
         if (bytesPerSec < 1024) return $"{bytesPerSec:F0} B/s";
         if (bytesPerSec < 1024 * 1024) return $"{bytesPerSec / 1024.0:F1} KB/s";
         return $"{bytesPerSec / (1024.0 * 1024.0):F1} MB/s";
+    }
+
+    public bool HasFile => !string.IsNullOrEmpty(FilePath) && File.Exists(FilePath);
+
+    [RelayCommand]
+    private void OpenFile()
+    {
+        if (HasFile)
+            Process.Start(new ProcessStartInfo(FilePath) { UseShellExecute = true });
+    }
+
+    [RelayCommand]
+    private void ShowInExplorer()
+    {
+        if (HasFile)
+            Process.Start("explorer.exe", $"/select,\"{FilePath}\"");
     }
 }
