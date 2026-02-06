@@ -10,7 +10,6 @@ public class DownloadService
 
     private DownloaderApplication? _app;
     private Task? _runTask;
-    private CancellationTokenSource? _cts;
 
     public bool IsRunning => _runTask is { IsCompleted: false };
     public DownloaderApplication? App => _app;
@@ -31,7 +30,6 @@ public class DownloadService
         }
 
         Error = null;
-        _cts = new CancellationTokenSource();
 
         var args = BuildArgs(input, settings);
         var config = new Config(args);
@@ -58,7 +56,7 @@ public class DownloadService
 
     public void Cancel()
     {
-        _cts?.Cancel();
+        _app?.Cancel();
     }
 
     public async Task WaitForCompletionAsync()

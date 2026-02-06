@@ -36,6 +36,11 @@ public class DownloaderApplication
     private Task? updateTask;
     private readonly CancellationTokenSource appCts = new(); // For overall app cancellation
 
+    public void Cancel()
+    {
+        appCts.Cancel();
+    }
+
     public DownloaderApplication(Config config, ISoulseekClient? client = null)
     {
         defaultConfig = config;

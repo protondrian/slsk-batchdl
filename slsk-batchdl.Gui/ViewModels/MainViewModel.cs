@@ -96,6 +96,13 @@ public partial class MainViewModel : ObservableObject
         settings.PreferredBitrate = PreferredBitrate;
         settings.DownloadPath = DownloadPath;
 
+        // Wait for any previous run to finish cleanup
+        if (_downloadService != null)
+        {
+            await _downloadService.WaitForCompletionAsync();
+            _downloadService = null;
+        }
+
         IsDownloading = true;
         _tracksPopulated = false;
         Downloads.Clear();
@@ -189,7 +196,20 @@ public partial class MainViewModel : ObservableObject
     private void StopDownload()
     {
         _downloadService?.Cancel();
-        StatusText = "Cancelling...";
+
+        _pollTimer?.Stop();
+        _pollTimer = null;
+
+        foreach (var item in Downloads)
+        {
+            if (item.Status is DownloadStatus.Waiting or DownloadStatus.Searching or DownloadStatus.Downloading)
+                item.Status = DownloadStatus.Failed;
+        }
+
+        IsDownloading = false;
+        OnPropertyChanged(nameof(CompletedCount));
+        OnPropertyChanged(nameof(OverallProgress));
+        StatusText = $"Cancelled: {CompletedCount}/{TotalCount} tracks downloaded";
     }
 
     [RelayCommand]
