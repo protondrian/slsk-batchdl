@@ -370,4 +370,8 @@ FodyWeavers.xsd
 # VS Code
 .vscode/
 
+# Testing
+test-config.conf
+test-downloads/
+
 install.bat
