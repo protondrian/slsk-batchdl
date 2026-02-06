@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -96,17 +97,19 @@ public partial class MainViewModel : ObservableObject
         settings.PreferredBitrate = PreferredBitrate;
         settings.DownloadPath = DownloadPath;
 
-        // Wait for any previous run to finish cleanup
-        if (_downloadService != null)
-        {
-            await _downloadService.WaitForCompletionAsync();
-            _downloadService = null;
-        }
-
         IsDownloading = true;
         _tracksPopulated = false;
         Downloads.Clear();
         StatusText = $"Starting: {SearchInput}";
+
+        // Wait briefly for any previous run to finish cleanup
+        if (_downloadService != null)
+        {
+            await Task.WhenAny(
+                _downloadService.WaitForCompletionAsync(),
+                Task.Delay(2000));
+            _downloadService = null;
+        }
 
         _downloadService = new DownloadService();
         await _downloadService.StartAsync(SearchInput, settings);
@@ -160,6 +163,7 @@ public partial class MainViewModel : ObservableObject
                         item.Status = DownloadStatus.Downloading;
                         if (wrapper.file.Size > 0)
                             item.ProgressPercent = wrapper.bytesTransferred / (double)wrapper.file.Size * 100;
+                        item.UpdateFromWrapper(wrapper);
                         break;
                     }
                 }
@@ -203,7 +207,7 @@ public partial class MainViewModel : ObservableObject
         foreach (var item in Downloads)
         {
             if (item.Status is DownloadStatus.Waiting or DownloadStatus.Searching or DownloadStatus.Downloading)
-                item.Status = DownloadStatus.Failed;
+                item.Status = DownloadStatus.Cancelled;
         }
 
         IsDownloading = false;
@@ -224,6 +228,24 @@ public partial class MainViewModel : ObservableObject
         if (dialog.ShowDialog() == true)
         {
             DownloadPath = dialog.FolderName;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenLogFile()
+    {
+        var logDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "sldl-gui", "logs");
+        var logFile = Path.Combine(logDir, $"sldl-gui_{DateTime.Now:yyyy-MM-dd}.log");
+
+        if (File.Exists(logFile))
+        {
+            Process.Start(new ProcessStartInfo(logFile) { UseShellExecute = true });
+        }
+        else
+        {
+            Process.Start(new ProcessStartInfo(logDir) { UseShellExecute = true });
         }
     }
 }

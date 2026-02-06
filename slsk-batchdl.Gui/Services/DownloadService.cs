@@ -6,8 +6,6 @@ namespace slsk_batchdl.Gui.Services;
 
 public class DownloadService
 {
-    private static bool _loggerInitialized;
-
     private DownloaderApplication? _app;
     private Task? _runTask;
 
@@ -19,15 +17,6 @@ public class DownloadService
     {
         if (IsRunning)
             throw new InvalidOperationException("Download already in progress.");
-
-        // Program.Main() calls these but the GUI bypasses Main entirely.
-        // Logger.AddConsole() must be called so SetConsoleLogLevel().First() doesn't crash.
-        if (!_loggerInitialized)
-        {
-            Logger.SetupExceptionHandling();
-            Logger.AddConsole();
-            _loggerInitialized = true;
-        }
 
         Error = null;
 

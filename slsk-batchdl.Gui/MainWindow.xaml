@@ -156,16 +156,56 @@
         <materialDesign:Card Grid.Row="2" Margin="0,0,0,12"
                              materialDesign:ElevationAssist.Elevation="Dp1">
             <Grid>
-                <!-- Empty state -->
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                            Visibility="{Binding Downloads.Count, Converter={StaticResource ZeroToVisibleConverter}}">
+                <!-- Empty state (not downloading) -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Downloads.Count}" Value="0" />
+                                        <Condition Binding="{Binding IsDownloading}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
                     <materialDesign:PackIcon
                         Kind="CloudDownloadOutline"
                         Width="48" Height="48"
                         HorizontalAlignment="Center"
                         Opacity="0.3" />
                     <TextBlock
-                        Text="Enter a URL or search query to start downloading"
+                        Text="Enter a URL to start downloading"
+                        HorizontalAlignment="Center"
+                        Opacity="0.4"
+                        Margin="0,12,0,0" />
+                </StackPanel>
+
+                <!-- Loading state (downloading, tracks not yet extracted) -->
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding Downloads.Count}" Value="0" />
+                                        <Condition Binding="{Binding IsDownloading}" Value="True" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <ProgressBar
+                        IsIndeterminate="True"
+                        Width="200"
+                        HorizontalAlignment="Center" />
+                    <TextBlock
+                        Text="Extracting tracks..."
                         HorizontalAlignment="Center"
                         Opacity="0.4"
                         Margin="0,12,0,0" />
@@ -213,6 +253,10 @@
                                                     <Setter Property="Kind" Value="CloseCircle" />
                                                     <Setter Property="Foreground" Value="Tomato" />
                                                 </DataTrigger>
+                                                <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                                    <Setter Property="Kind" Value="Cancel" />
+                                                    <Setter Property="Foreground" Value="Gray" />
+                                                </DataTrigger>
                                                 <DataTrigger Binding="{Binding Status}" Value="Skipped">
                                                     <Setter Property="Kind" Value="SkipNext" />
                                                     <Setter Property="Foreground" Value="Gray" />
@@ -222,9 +266,20 @@
                                     </materialDesign:PackIcon.Style>
                                 </materialDesign:PackIcon>
 
-                                <!-- Track name + progress bar -->
+                                <!-- Track name + detail + progress bar -->
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding TrackName}" FontSize="14" />
+                                    <TextBlock Text="{Binding StatusDetail}" FontSize="11" Opacity="0.5">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding StatusDetail}" Value="">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <ProgressBar
                                         Value="{Binding ProgressPercent, Mode=OneWay}"
                                         Height="3"
@@ -251,17 +306,28 @@
         <!-- Row 3: Status Bar -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBlock
+            <Button
                 Grid.Column="0"
+                Command="{Binding OpenLogFileCommand}"
+                Style="{StaticResource MaterialDesignToolButton}"
+                ToolTip="Open log file"
+                Padding="4" Height="28" Width="28"
+                Margin="0,0,8,0">
+                <materialDesign:PackIcon Kind="FileDocument" Width="16" Height="16" Opacity="0.5" />
+            </Button>
+
+            <TextBlock
+                Grid.Column="1"
                 Text="{Binding StatusText}"
                 VerticalAlignment="Center"
                 Opacity="0.6" />
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock VerticalAlignment="Center" Opacity="0.6" Margin="0,0,8,0">
                     <TextBlock.Text>
                         <MultiBinding StringFormat="{}{0}/{1}">
