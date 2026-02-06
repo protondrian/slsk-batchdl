@@ -363,5 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 /slsk-batchdl/Properties/launchSettings.json
 
+# AI Assistant files
 .aider*
+.claude/
 install.bat
