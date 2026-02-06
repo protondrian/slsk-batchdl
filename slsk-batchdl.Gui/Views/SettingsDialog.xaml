@@ -18,6 +18,10 @@
         TextElement.FontSize="14"
         FontFamily="{materialDesign:MaterialDesignFont}">
 
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </Window.Resources>
+
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -39,12 +43,54 @@
                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
                     Margin="0,0,0,12" />
 
-                <PasswordBox
-                    materialDesign:HintAssist.Hint="Password"
-                    materialDesign:HintAssist.IsFloating="True"
-                    materialDesign:PasswordBoxAssist.Password="{Binding SoulseekPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                    Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
-                    Margin="0,0,0,24" />
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <PasswordBox
+                        Grid.Column="0"
+                        materialDesign:HintAssist.Hint="Password"
+                        materialDesign:HintAssist.IsFloating="True"
+                        materialDesign:PasswordBoxAssist.Password="{Binding SoulseekPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource MaterialDesignOutlinedPasswordBox}"
+                        Margin="0,0,8,0" />
+
+                    <Button
+                        Grid.Column="1"
+                        Command="{Binding TestCredentialsCommand}"
+                        Style="{StaticResource MaterialDesignOutlinedButton}"
+                        Content="Test"
+                        Height="40" />
+                </Grid>
+
+                <!-- Testing indicator -->
+                <ProgressBar
+                    IsIndeterminate="True"
+                    Height="2"
+                    Margin="0,0,0,8"
+                    Visibility="{Binding IsTesting, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                <!-- Credential test result -->
+                <TextBlock
+                    Text="{Binding CredentialStatus}"
+                    FontSize="12"
+                    Margin="0,0,0,16">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="Tomato" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CredentialStatus}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CredentialSuccess}" Value="True">
+                                    <Setter Property="Foreground" Value="LimeGreen" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
 
                 <!-- Download Defaults -->
                 <TextBlock Text="Download Defaults"
