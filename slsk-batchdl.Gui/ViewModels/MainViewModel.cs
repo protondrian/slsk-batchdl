@@ -1,14 +1,21 @@
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Windows;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Models;
+using slsk_batchdl.Gui.Models;
 using slsk_batchdl.Gui.Services;
 
 namespace slsk_batchdl.Gui.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    private readonly SettingsService _settingsService = new();
+    private DownloadService? _downloadService;
+    private DispatcherTimer? _pollTimer;
+    private bool _tracksPopulated;
+
     [ObservableProperty]
     private string _searchInput = "";
 
@@ -22,21 +29,6 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private int _preferredBitrate = 320;
-
-    public MainViewModel()
-    {
-        var settings = new SettingsService().Load();
-        SelectedFormat = settings.PreferredFormat;
-        PreferredBitrate = settings.PreferredBitrate;
-        DownloadPath = settings.DownloadPath;
-    }
-
-    public void ApplySettings(SettingsViewModel settingsVm)
-    {
-        SelectedFormat = settingsVm.PreferredFormat;
-        PreferredBitrate = settingsVm.PreferredBitrate;
-        DownloadPath = settingsVm.DownloadPath;
-    }
 
     [ObservableProperty]
     private bool _isDownloading;
@@ -55,56 +47,150 @@ public partial class MainViewModel : ObservableObject
         ? (double)CompletedCount / TotalCount * 100
         : 0;
 
+    public MainViewModel()
+    {
+        var settings = _settingsService.Load();
+        SelectedFormat = settings.PreferredFormat;
+        PreferredBitrate = settings.PreferredBitrate;
+        DownloadPath = settings.DownloadPath;
+    }
+
+    public void ApplySettings(SettingsViewModel settingsVm)
+    {
+        SelectedFormat = settingsVm.PreferredFormat;
+        PreferredBitrate = settingsVm.PreferredBitrate;
+        DownloadPath = settingsVm.DownloadPath;
+    }
+
     [RelayCommand(CanExecute = nameof(CanStartDownload))]
     private async Task StartDownload()
     {
         if (string.IsNullOrWhiteSpace(SearchInput)) return;
 
-        IsDownloading = true;
-        StatusText = $"Searching: {SearchInput}";
+        // Validate input: must be a URL supported by one of the extractors
+        var input = SearchInput.Trim().ToLower();
+        bool isSupported = input.Contains("spotify.com")
+            || input is "spotify-likes" or "spotify-albums"
+            || input.Contains("youtube.com") || input.Contains("youtu.be")
+            || input.Contains("bandcamp.com")
+            || input.Contains("musicbrainz.org")
+            || input.StartsWith("slsk://");
 
-        // TODO: Wire up to DownloaderApplication in next commit
-        // For now, add dummy items to show the UI works
-        Downloads.Clear();
-        var demoTracks = new[]
+        if (!isSupported)
         {
-            "Demo Track 1",
-            "Demo Track 2",
-            "Demo Track 3",
-        };
-
-        foreach (var track in demoTracks)
-        {
-            var item = new DownloadItemViewModel(track);
-            Downloads.Add(item);
+            StatusText = "Unsupported input. Use a Spotify, YouTube, Bandcamp or MusicBrainz URL";
+            return;
         }
 
-        // Simulate progress
+        // Validate credentials
+        var settings = _settingsService.Load();
+        if (string.IsNullOrWhiteSpace(settings.SoulseekUsername) ||
+            string.IsNullOrWhiteSpace(settings.SoulseekPassword))
+        {
+            StatusText = "Set Soulseek credentials in Settings first";
+            return;
+        }
+
+        // Apply current quick settings to the download
+        settings.PreferredFormat = SelectedFormat;
+        settings.PreferredBitrate = PreferredBitrate;
+        settings.DownloadPath = DownloadPath;
+
+        IsDownloading = true;
+        _tracksPopulated = false;
+        Downloads.Clear();
+        StatusText = $"Starting: {SearchInput}";
+
+        _downloadService = new DownloadService();
+        await _downloadService.StartAsync(SearchInput, settings);
+
+        // Start polling timer
+        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _pollTimer.Tick += PollTimer_Tick;
+        _pollTimer.Start();
+    }
+
+    private void PollTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_downloadService == null) return;
+
+        // Populate tracks once they're extracted
+        if (!_tracksPopulated)
+        {
+            var tracks = _downloadService.GetAllTracks();
+            if (tracks.Count > 0)
+            {
+                _tracksPopulated = true;
+                foreach (var track in tracks)
+                {
+                    Downloads.Add(new DownloadItemViewModel(track));
+                }
+                StatusText = $"Downloading: {tracks.Count} tracks";
+                OnPropertyChanged(nameof(TotalCount));
+            }
+        }
+
+        // Update track states + real-time progress from app internals
+        var app = _downloadService.App;
         foreach (var item in Downloads)
         {
-            item.Status = DownloadStatus.Downloading;
-            item.ProgressPercent = 0;
+            item.UpdateFromTrack();
 
-            for (int i = 0; i <= 100; i += 20)
+            // Detect searching/downloading from app's live dictionaries
+            if (app != null && item.Track != null && item.Status == DownloadStatus.Waiting)
             {
-                item.ProgressPercent = i;
-                await Task.Delay(100);
+                if (app.searches.ContainsKey(item.Track))
+                    item.Status = DownloadStatus.Searching;
             }
 
-            item.Status = DownloadStatus.Completed;
-            item.ProgressPercent = 100;
-            OnPropertyChanged(nameof(CompletedCount));
-            OnPropertyChanged(nameof(OverallProgress));
+            // Update real download progress from DownloadWrapper
+            if (app != null && item.Track != null)
+            {
+                foreach (var (_, wrapper) in app.downloads)
+                {
+                    if (wrapper.track == item.Track)
+                    {
+                        item.Status = DownloadStatus.Downloading;
+                        if (wrapper.file.Size > 0)
+                            item.ProgressPercent = wrapper.bytesTransferred / (double)wrapper.file.Size * 100;
+                        break;
+                    }
+                }
+            }
         }
 
-        IsDownloading = false;
-        StatusText = $"Done: {CompletedCount}/{TotalCount} tracks downloaded";
+        OnPropertyChanged(nameof(CompletedCount));
+        OnPropertyChanged(nameof(OverallProgress));
+
+        // Check if done
+        if (!_downloadService.IsRunning)
+        {
+            _pollTimer?.Stop();
+            _pollTimer = null;
+            IsDownloading = false;
+
+            if (_downloadService.Error != null)
+            {
+                StatusText = $"Error: {_downloadService.Error.Message}";
+            }
+            else
+            {
+                StatusText = $"Done: {CompletedCount}/{TotalCount} tracks downloaded";
+            }
+        }
     }
 
     private bool CanStartDownload() => !IsDownloading && !string.IsNullOrWhiteSpace(SearchInput);
 
     partial void OnSearchInputChanged(string value) => StartDownloadCommand.NotifyCanExecuteChanged();
     partial void OnIsDownloadingChanged(bool value) => StartDownloadCommand.NotifyCanExecuteChanged();
+
+    [RelayCommand]
+    private void StopDownload()
+    {
+        _downloadService?.Cancel();
+        StatusText = "Cancelling...";
+    }
 
     [RelayCommand]
     private void BrowseDownloadPath()

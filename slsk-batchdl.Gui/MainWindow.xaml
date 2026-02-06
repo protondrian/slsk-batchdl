@@ -20,9 +20,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
-        <converters:BoolToIconConverter x:Key="BoolToIconConverter" />
-        <converters:BoolToTextConverter x:Key="BoolToTextConverter"
-                                        TrueText="Stop" FalseText="Start" />
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
         <converters:ZeroToVisibleConverter x:Key="ZeroToVisibleConverter" />
     </Window.Resources>
 
@@ -57,20 +55,31 @@
                 </TextBox.InputBindings>
             </TextBox>
 
+            <!-- Start button (visible when not downloading) -->
             <Button
                 Grid.Column="1"
                 Command="{Binding StartDownloadCommand}"
                 Style="{StaticResource MaterialDesignRaisedButton}"
                 Height="48" Width="120"
-                FontSize="15">
+                FontSize="15"
+                Visibility="{Binding IsDownloading, Converter={StaticResource InverseBoolToVisibilityConverter}}">
                 <StackPanel Orientation="Horizontal">
-                    <materialDesign:PackIcon
-                        Kind="{Binding IsDownloading, Converter={StaticResource BoolToIconConverter}}"
-                        VerticalAlignment="Center"
-                        Margin="0,0,6,0" />
-                    <TextBlock
-                        Text="{Binding IsDownloading, Converter={StaticResource BoolToTextConverter}}"
-                        VerticalAlignment="Center" />
+                    <materialDesign:PackIcon Kind="Play" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Text="Start" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+
+            <!-- Stop button (visible when downloading) -->
+            <Button
+                Grid.Column="1"
+                Command="{Binding StopDownloadCommand}"
+                Style="{StaticResource MaterialDesignRaisedButton}"
+                Height="48" Width="120"
+                FontSize="15"
+                Visibility="{Binding IsDownloading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Stop" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Text="Stop" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
 
