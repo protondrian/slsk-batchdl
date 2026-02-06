@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using slsk_batchdl.Gui.Services;
 
 namespace slsk_batchdl.Gui.ViewModels;
 
@@ -22,8 +23,20 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private int _preferredBitrate = 320;
 
-    [ObservableProperty]
-    private string _selectedMode = "Normal";
+    public MainViewModel()
+    {
+        var settings = new SettingsService().Load();
+        SelectedFormat = settings.PreferredFormat;
+        PreferredBitrate = settings.PreferredBitrate;
+        DownloadPath = settings.DownloadPath;
+    }
+
+    public void ApplySettings(SettingsViewModel settingsVm)
+    {
+        SelectedFormat = settingsVm.PreferredFormat;
+        PreferredBitrate = settingsVm.PreferredBitrate;
+        DownloadPath = settingsVm.DownloadPath;
+    }
 
     [ObservableProperty]
     private bool _isDownloading;
@@ -35,7 +48,6 @@ public partial class MainViewModel : ObservableObject
 
     public string[] AvailableFormats { get; } = ["MP3", "FLAC", "OGG", "M4A", "OPUS", "WAV"];
     public int[] AvailableBitrates { get; } = [128, 192, 256, 320];
-    public string[] AvailableModes { get; } = ["Normal", "Album", "Aggregate", "Album Aggregate"];
 
     public int CompletedCount => Downloads.Count(d => d.IsCompleted);
     public int TotalCount => Downloads.Count;
