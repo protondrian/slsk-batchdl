@@ -366,4 +366,8 @@ FodyWeavers.xsd
 # AI Assistant files
 .aider*
 .claude/
+
+# VS Code
+.vscode/
+
 install.bat
