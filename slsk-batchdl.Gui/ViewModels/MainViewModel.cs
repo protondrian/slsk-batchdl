@@ -5,6 +5,7 @@ using System.Windows.Shell;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Enums;
 using Models;
 using slsk_batchdl.Gui.Models;
 using slsk_batchdl.Gui.Services;
@@ -138,7 +139,9 @@ public partial class MainViewModel : ObservableObject
                 _tracksPopulated = true;
                 foreach (var track in tracks)
                 {
-                    Downloads.Add(new DownloadItemViewModel(track));
+                    var item = new DownloadItemViewModel(track);
+                    item.RetryRequested += OnItemRetryRequested;
+                    Downloads.Add(item);
                 }
                 StatusText = $"Downloading: {tracks.Count} tracks";
                 OnPropertyChanged(nameof(TotalCount));
@@ -197,13 +200,21 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private void OnItemRetryRequested()
+    {
+        if (!IsDownloading && _downloadService != null)
+            RetryFailed();
+    }
+
     private bool CanStartDownload() => !IsDownloading && !string.IsNullOrWhiteSpace(SearchInput);
 
     partial void OnSearchInputChanged(string value) => StartDownloadCommand.NotifyCanExecuteChanged();
     partial void OnIsDownloadingChanged(bool value)
     {
         StartDownloadCommand.NotifyCanExecuteChanged();
+        RetryFailedCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(TaskbarProgressState));
+        OnPropertyChanged(nameof(HasFailedDownloads));
     }
 
     [RelayCommand]
@@ -247,6 +258,40 @@ public partial class MainViewModel : ObservableObject
     {
         if (Directory.Exists(DownloadPath))
             Process.Start(new ProcessStartInfo(DownloadPath) { UseShellExecute = true });
+    }
+
+    public bool HasFailedDownloads => !IsDownloading && Downloads.Any(d => d.IsFailed || d.Status == DownloadStatus.Cancelled);
+
+    [RelayCommand(CanExecute = nameof(HasFailedDownloads))]
+    private void RetryFailed()
+    {
+        if (_downloadService == null) return;
+
+        IsDownloading = true;
+        var failedCount = Downloads.Count(d => d.IsFailed || d.Status == DownloadStatus.Cancelled);
+        StatusText = $"Retrying {failedCount} failed downloads...";
+
+        // Reset failed/cancelled items in the UI
+        foreach (var item in Downloads)
+        {
+            if (item.IsFailed || item.Status == DownloadStatus.Cancelled)
+            {
+                if (item.Track != null)
+                {
+                    item.Track.State = TrackState.Initial;
+                    item.Track.FailureReason = FailureReason.None;
+                }
+                item.Status = DownloadStatus.Waiting;
+                item.StatusDetail = "";
+                item.ProgressPercent = 0;
+            }
+        }
+
+        _downloadService.RetryFailedAsync();
+
+        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _pollTimer.Tick += PollTimer_Tick;
+        _pollTimer.Start();
     }
 
     [RelayCommand]

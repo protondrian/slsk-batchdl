@@ -201,4 +201,19 @@ public partial class DownloadItemViewModel : ObservableObject
         if (HasFile)
             Process.Start("explorer.exe", $"/select,\"{FilePath}\"");
     }
+
+    public event Action? RetryRequested;
+
+    [RelayCommand]
+    private void Retry()
+    {
+        if (Track == null || !IsFailed) return;
+
+        Track.State = TrackState.Initial;
+        Track.FailureReason = FailureReason.None;
+        Status = DownloadStatus.Waiting;
+        StatusDetail = "";
+        ProgressPercent = 0;
+        RetryRequested?.Invoke();
+    }
 }

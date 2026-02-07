@@ -48,6 +48,29 @@ public class DownloadService
         _app?.Cancel();
     }
 
+    public Task RetryFailedAsync()
+    {
+        if (_app == null)
+            throw new InvalidOperationException("No download session to retry.");
+
+        _runTask = Task.Run(async () =>
+        {
+            try
+            {
+                await _app.RetryFailedAsync();
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Error = ex;
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+
     public async Task WaitForCompletionAsync()
     {
         if (_runTask != null)

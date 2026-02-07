@@ -47,6 +47,41 @@ public class DownloaderApplication
         appCts.Cancel();
     }
 
+    public async Task RetryFailedAsync()
+    {
+        if (trackLists == null) return;
+
+        lock (trackLists)
+        {
+            foreach (var tle in trackLists.lists)
+            {
+                if (tle.list == null) continue;
+                foreach (var group in tle.list)
+                {
+                    foreach (var track in group)
+                    {
+                        if (track.State == TrackState.Failed)
+                        {
+                            track.State = TrackState.Initial;
+                            track.FailureReason = FailureReason.None;
+                        }
+                    }
+                }
+            }
+        }
+
+        await EnsureClientReadyAsync(defaultConfig);
+
+        foreach (var tle in trackLists.lists)
+        {
+            var config = tle.config;
+            if (tle.source.Type == TrackType.Normal || tle.source.Type == TrackType.Aggregate)
+                await DownloadNormal(config, tle);
+            else if (tle.source.Type == TrackType.Album)
+                await DownloadAlbum(config, tle);
+        }
+    }
+
     public DownloaderApplication(Config config, ISoulseekClient? client = null)
     {
         defaultConfig = config;

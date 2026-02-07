@@ -9,6 +9,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance vm:MainViewModel}"
         Title="sldl"
+        Icon="Resources/app.ico"
         Height="650" Width="950"
         MinHeight="450" MinWidth="700"
         Style="{StaticResource MaterialDesignWindow}"
@@ -28,6 +29,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
         <converters:ZeroToVisibleConverter x:Key="ZeroToVisibleConverter" />
+        <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter" />
     </Window.Resources>
 
     <Grid Margin="20">
@@ -161,7 +163,90 @@
         <!-- Row 2: Download List -->
         <materialDesign:Card Grid.Row="2" Margin="0,0,0,12"
                              materialDesign:ElevationAssist.Elevation="Dp1">
-            <Grid>
+            <Grid ClipToBounds="True">
+                <!-- Background watermark -->
+                <Image Source="Resources/dog.png"
+                       Width="200" Height="200"
+                       Stretch="UniformToFill"
+                       Opacity="0.5"
+                       IsHitTestVisible="False"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       RenderTransformOrigin="0.5,1">
+                    <Image.RenderTransform>
+                        <TransformGroup>
+                            <TranslateTransform x:Name="DogTranslate" />
+                            <ScaleTransform x:Name="DogScale" ScaleX="1" ScaleY="1" />
+                        </TransformGroup>
+                    </Image.RenderTransform>
+                    <Image.Style>
+                        <Style TargetType="Image">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDownloading}" Value="True">
+                                    <DataTrigger.EnterActions>
+                                        <BeginStoryboard x:Name="BounceStoryboard">
+                                            <Storyboard>
+                                                <!-- Drift X: slow side to side -->
+                                                <DoubleAnimation
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(TranslateTransform.X)"
+                                                    From="-150" To="150"
+                                                    Duration="0:0:4.5"
+                                                    AutoReverse="True"
+                                                    RepeatBehavior="Forever">
+                                                    <DoubleAnimation.EasingFunction>
+                                                        <SineEase EasingMode="EaseInOut" />
+                                                    </DoubleAnimation.EasingFunction>
+                                                </DoubleAnimation>
+
+                                                <!-- Hop Y: quick bounces -->
+                                                <DoubleAnimationUsingKeyFrames
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(TranslateTransform.Y)"
+                                                    RepeatBehavior="Forever">
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0" Value="0" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.25" Value="-40">
+                                                        <EasingDoubleKeyFrame.EasingFunction>
+                                                            <QuadraticEase EasingMode="EaseOut" />
+                                                        </EasingDoubleKeyFrame.EasingFunction>
+                                                    </EasingDoubleKeyFrame>
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.5" Value="0">
+                                                        <EasingDoubleKeyFrame.EasingFunction>
+                                                            <BounceEase Bounces="1" Bounciness="4" EasingMode="EaseIn" />
+                                                        </EasingDoubleKeyFrame.EasingFunction>
+                                                    </EasingDoubleKeyFrame>
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.9" Value="0" />
+                                                </DoubleAnimationUsingKeyFrames>
+
+                                                <!-- Squash & stretch on hop -->
+                                                <DoubleAnimationUsingKeyFrames
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(ScaleTransform.ScaleY)"
+                                                    RepeatBehavior="Forever">
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0" Value="0.9" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.15" Value="1.1" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.5" Value="0.9" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.6" Value="1.0" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.9" Value="0.9" />
+                                                </DoubleAnimationUsingKeyFrames>
+                                                <DoubleAnimationUsingKeyFrames
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(ScaleTransform.ScaleX)"
+                                                    RepeatBehavior="Forever">
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0" Value="1.05" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.15" Value="0.95" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.5" Value="1.05" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.6" Value="1.0" />
+                                                    <EasingDoubleKeyFrame KeyTime="0:0:0.9" Value="1.05" />
+                                                </DoubleAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.EnterActions>
+                                    <DataTrigger.ExitActions>
+                                        <StopStoryboard BeginStoryboardName="BounceStoryboard" />
+                                    </DataTrigger.ExitActions>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Image.Style>
+                </Image>
+
                 <!-- Empty state (not downloading) -->
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <StackPanel.Style>
@@ -221,7 +306,9 @@
                 <ListBox
                     ItemsSource="{Binding Downloads}"
                     Style="{StaticResource MaterialDesignListBox}"
+                    Background="Transparent"
                     VirtualizingStackPanel.IsVirtualizing="True"
+                    VirtualizingStackPanel.ScrollUnit="Pixel"
                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:DownloadItemViewModel}">
@@ -240,6 +327,13 @@
                                                   IsEnabled="{Binding HasFile}">
                                             <MenuItem.Icon>
                                                 <materialDesign:PackIcon Kind="FolderOpen" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Retry"
+                                                  Command="{Binding RetryCommand}"
+                                                  IsEnabled="{Binding IsFailed}">
+                                            <MenuItem.Icon>
+                                                <materialDesign:PackIcon Kind="Refresh" />
                                             </MenuItem.Icon>
                                         </MenuItem>
                                     </ContextMenu>
@@ -293,22 +387,13 @@
                                 <!-- Track name + detail + progress bar -->
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding TrackName}" FontSize="14" />
-                                    <TextBlock Text="{Binding StatusDetail}" FontSize="11" Opacity="0.5">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding StatusDetail}" Value="">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                    <TextBlock Text="{Binding StatusDetail}" FontSize="11" Opacity="0.5"
+                                               MinHeight="16" />
                                     <ProgressBar
                                         Value="{Binding ProgressPercent, Mode=OneWay}"
                                         Height="3"
                                         Margin="0,4,0,0"
-                                        Visibility="{Binding IsActive, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                        Opacity="{Binding IsActive, Converter={StaticResource BoolToOpacityConverter}}" />
                                 </StackPanel>
 
                                 <!-- Status text -->
@@ -330,6 +415,7 @@
         <!-- Row 3: Status Bar -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -354,13 +440,25 @@
                 </Button>
             </StackPanel>
 
-            <TextBlock
+            <Button
                 Grid.Column="1"
+                Command="{Binding RetryFailedCommand}"
+                Style="{StaticResource MaterialDesignFlatButton}"
+                Content="Retry Failed"
+                FontSize="12"
+                Height="28"
+                Padding="8,0"
+                Margin="0,0,8,0"
+                HorizontalAlignment="Left"
+                Visibility="{Binding HasFailedDownloads, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <TextBlock
+                Grid.Column="2"
                 Text="{Binding StatusText}"
                 VerticalAlignment="Center"
                 Opacity="0.6" />
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock VerticalAlignment="Center" Opacity="0.6" Margin="0,0,8,0">
                     <TextBlock.Text>
                         <MultiBinding StringFormat="{}{0}/{1}">
