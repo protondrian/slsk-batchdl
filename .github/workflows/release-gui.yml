@@ -1,0 +1,50 @@
+name: Release GUI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '**.cs'
+      - '**.csproj'
+      - '**.sln'
+      - '**/packages.lock.json'
+      - '.github/workflows/release-gui.yml'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Publish self-contained single-file exe
+        run: >
+          dotnet publish slsk-batchdl.Gui/slsk-batchdl.Gui.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -o ./publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sldl-gui-win-x64
+          path: publish/sldl-gui.exe
+          retention-days: 30
