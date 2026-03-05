@@ -1,3 +1,6 @@
+## Fork Info
+This is a fork of [fiso64/slsk-batchdl](https://github.com/fiso64/slsk-batchdl) 
+
 # sldl
 
 A smart and configurable downloader for Soulseek. Built with Soulseek.NET.
