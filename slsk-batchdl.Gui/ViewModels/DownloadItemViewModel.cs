@@ -53,6 +53,18 @@ public partial class DownloadItemViewModel : ObservableObject
     public bool IsFailed => Status == DownloadStatus.Failed;
     public bool IsActive => Status is DownloadStatus.Searching or DownloadStatus.Downloading;
 
+    public int SortOrder => Status switch
+    {
+        DownloadStatus.Waiting    => 0,
+        DownloadStatus.Searching  => 0,
+        DownloadStatus.Downloading => 0,
+        DownloadStatus.Failed     => 1,
+        DownloadStatus.Cancelled  => 1,
+        DownloadStatus.Completed  => 2,
+        DownloadStatus.Skipped    => 2,
+        _                         => 2,
+    };
+
     private string FailureText => Track?.FailureReason switch
     {
         FailureReason.NoSuitableFileFound => "Not found",
@@ -134,6 +146,7 @@ public partial class DownloadItemViewModel : ObservableObject
         OnPropertyChanged(nameof(IsCompleted));
         OnPropertyChanged(nameof(IsFailed));
         OnPropertyChanged(nameof(IsActive));
+        OnPropertyChanged(nameof(SortOrder));
     }
 
     partial void OnFilePathChanged(string value)

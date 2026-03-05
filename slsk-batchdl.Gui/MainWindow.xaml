@@ -30,6 +30,103 @@
         <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter" />
         <converters:ZeroToVisibleConverter x:Key="ZeroToVisibleConverter" />
         <converters:BoolToOpacityConverter x:Key="BoolToOpacityConverter" />
+
+        <DataTemplate x:Key="DownloadItemTemplate" DataType="{x:Type vm:DownloadItemViewModel}">
+            <Grid Margin="8,6">
+                <Grid.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Open file"
+                                  Command="{Binding OpenFileCommand}"
+                                  IsEnabled="{Binding HasFile}">
+                            <MenuItem.Icon>
+                                <materialDesign:PackIcon Kind="FileMusic" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Show in Explorer"
+                                  Command="{Binding ShowInExplorerCommand}"
+                                  IsEnabled="{Binding HasFile}">
+                            <MenuItem.Icon>
+                                <materialDesign:PackIcon Kind="FolderOpen" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Retry"
+                                  Command="{Binding RetryCommand}"
+                                  IsEnabled="{Binding IsFailed}">
+                            <MenuItem.Icon>
+                                <materialDesign:PackIcon Kind="Refresh" />
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </Grid.ContextMenu>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Status icon -->
+                <materialDesign:PackIcon
+                    Grid.Column="0"
+                    Width="20" Height="20"
+                    VerticalAlignment="Center"
+                    Margin="0,0,12,0">
+                    <materialDesign:PackIcon.Style>
+                        <Style TargetType="materialDesign:PackIcon">
+                            <Setter Property="Kind" Value="MusicNote" />
+                            <Setter Property="Foreground" Value="{DynamicResource MaterialDesign.Brush.Foreground}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Status}" Value="Searching">
+                                    <Setter Property="Kind" Value="Magnify" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryHueMidBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Downloading">
+                                    <Setter Property="Kind" Value="Download" />
+                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryHueMidBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Completed">
+                                    <Setter Property="Kind" Value="CheckCircle" />
+                                    <Setter Property="Foreground" Value="LimeGreen" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Failed">
+                                    <Setter Property="Kind" Value="CloseCircle" />
+                                    <Setter Property="Foreground" Value="Tomato" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                    <Setter Property="Kind" Value="Cancel" />
+                                    <Setter Property="Foreground" Value="Gray" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Skipped">
+                                    <Setter Property="Kind" Value="SkipNext" />
+                                    <Setter Property="Foreground" Value="Gray" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </materialDesign:PackIcon.Style>
+                </materialDesign:PackIcon>
+
+                <!-- Track name + detail + progress bar -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding TrackName}" FontSize="14" />
+                    <TextBlock Text="{Binding StatusDetail}" FontSize="11" Opacity="0.5"
+                               MinHeight="16" />
+                    <ProgressBar
+                        Value="{Binding ProgressPercent, Mode=OneWay}"
+                        Height="3"
+                        Margin="0,4,0,0"
+                        Opacity="{Binding IsActive, Converter={StaticResource BoolToOpacityConverter}}" />
+                </StackPanel>
+
+                <!-- Status text -->
+                <TextBlock
+                    Grid.Column="2"
+                    Text="{Binding StatusDisplay}"
+                    VerticalAlignment="Center"
+                    Opacity="0.7"
+                    Margin="12,0,0,0"
+                    MinWidth="70"
+                    TextAlignment="Right" />
+            </Grid>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -186,7 +283,6 @@
                                     <DataTrigger.EnterActions>
                                         <BeginStoryboard x:Name="BounceStoryboard">
                                             <Storyboard>
-                                                <!-- Drift X: slow side to side -->
                                                 <DoubleAnimation
                                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(TranslateTransform.X)"
                                                     From="-150" To="150"
@@ -197,8 +293,6 @@
                                                         <SineEase EasingMode="EaseInOut" />
                                                     </DoubleAnimation.EasingFunction>
                                                 </DoubleAnimation>
-
-                                                <!-- Hop Y: quick bounces -->
                                                 <DoubleAnimationUsingKeyFrames
                                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(TranslateTransform.Y)"
                                                     RepeatBehavior="Forever">
@@ -215,8 +309,6 @@
                                                     </EasingDoubleKeyFrame>
                                                     <EasingDoubleKeyFrame KeyTime="0:0:0.9" Value="0" />
                                                 </DoubleAnimationUsingKeyFrames>
-
-                                                <!-- Squash & stretch on hop -->
                                                 <DoubleAnimationUsingKeyFrames
                                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(ScaleTransform.ScaleY)"
                                                     RepeatBehavior="Forever">
@@ -247,168 +339,157 @@
                     </Image.Style>
                 </Image>
 
-                <!-- Empty state (not downloading) -->
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <MultiDataTrigger>
-                                    <MultiDataTrigger.Conditions>
-                                        <Condition Binding="{Binding Downloads.Count}" Value="0" />
-                                        <Condition Binding="{Binding IsDownloading}" Value="False" />
-                                    </MultiDataTrigger.Conditions>
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </MultiDataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </StackPanel.Style>
-                    <materialDesign:PackIcon
-                        Kind="CloudDownloadOutline"
-                        Width="48" Height="48"
-                        HorizontalAlignment="Center"
-                        Opacity="0.3" />
-                    <TextBlock
-                        Text="Enter a URL to start downloading"
-                        HorizontalAlignment="Center"
-                        Opacity="0.4"
-                        Margin="0,12,0,0" />
-                </StackPanel>
+                <TabControl Background="Transparent">
 
-                <!-- Loading state (downloading, tracks not yet extracted) -->
-                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Collapsed" />
-                            <Style.Triggers>
-                                <MultiDataTrigger>
-                                    <MultiDataTrigger.Conditions>
-                                        <Condition Binding="{Binding Downloads.Count}" Value="0" />
-                                        <Condition Binding="{Binding IsDownloading}" Value="True" />
-                                    </MultiDataTrigger.Conditions>
-                                    <Setter Property="Visibility" Value="Visible" />
-                                </MultiDataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </StackPanel.Style>
-                    <ProgressBar
-                        IsIndeterminate="True"
-                        Width="200"
-                        HorizontalAlignment="Center" />
-                    <TextBlock
-                        Text="Extracting tracks..."
-                        HorizontalAlignment="Center"
-                        Opacity="0.4"
-                        Margin="0,12,0,0" />
-                </StackPanel>
+                    <!-- Tab 1: Downloading -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <TextBlock>
+                                <Run Text="Downloading" />
+                                <Run Text="{Binding ActiveCount, StringFormat=' ({0})', Mode=OneWay}" />
+                            </TextBlock>
+                        </TabItem.Header>
+                        <Grid Background="Transparent">
+                            <!-- Empty state -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding Downloads.Count}" Value="0" />
+                                                    <Condition Binding="{Binding IsDownloading}" Value="False" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <materialDesign:PackIcon Kind="CloudDownloadOutline"
+                                                         Width="48" Height="48"
+                                                         HorizontalAlignment="Center"
+                                                         Opacity="0.3" />
+                                <TextBlock Text="Enter a URL to start downloading"
+                                           HorizontalAlignment="Center"
+                                           Opacity="0.4"
+                                           Margin="0,12,0,0" />
+                            </StackPanel>
 
-                <!-- Download items -->
-                <ListBox
-                    ItemsSource="{Binding Downloads}"
-                    Style="{StaticResource MaterialDesignListBox}"
-                    Background="Transparent"
-                    VirtualizingStackPanel.IsVirtualizing="True"
-                    VirtualizingStackPanel.ScrollUnit="Pixel"
-                    ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate DataType="{x:Type vm:DownloadItemViewModel}">
-                            <Grid Margin="8,6">
-                                <Grid.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Open file"
-                                                  Command="{Binding OpenFileCommand}"
-                                                  IsEnabled="{Binding HasFile}">
-                                            <MenuItem.Icon>
-                                                <materialDesign:PackIcon Kind="FileMusic" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                        <MenuItem Header="Show in Explorer"
-                                                  Command="{Binding ShowInExplorerCommand}"
-                                                  IsEnabled="{Binding HasFile}">
-                                            <MenuItem.Icon>
-                                                <materialDesign:PackIcon Kind="FolderOpen" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                        <MenuItem Header="Retry"
-                                                  Command="{Binding RetryCommand}"
-                                                  IsEnabled="{Binding IsFailed}">
-                                            <MenuItem.Icon>
-                                                <materialDesign:PackIcon Kind="Refresh" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                    </ContextMenu>
-                                </Grid.ContextMenu>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                            <!-- Loading state -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding Downloads.Count}" Value="0" />
+                                                    <Condition Binding="{Binding IsDownloading}" Value="True" />
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Center" />
+                                <TextBlock Text="Extracting tracks..."
+                                           HorizontalAlignment="Center"
+                                           Opacity="0.4"
+                                           Margin="0,12,0,0" />
+                            </StackPanel>
 
-                                <!-- Status icon -->
-                                <materialDesign:PackIcon
-                                    Grid.Column="0"
-                                    Width="20" Height="20"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,12,0">
-                                    <materialDesign:PackIcon.Style>
-                                        <Style TargetType="materialDesign:PackIcon">
-                                            <Setter Property="Kind" Value="MusicNote" />
-                                            <Setter Property="Foreground" Value="{DynamicResource MaterialDesign.Brush.Foreground}" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Status}" Value="Searching">
-                                                    <Setter Property="Kind" Value="Magnify" />
-                                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryHueMidBrush}" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Downloading">
-                                                    <Setter Property="Kind" Value="Download" />
-                                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryHueMidBrush}" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Completed">
-                                                    <Setter Property="Kind" Value="CheckCircle" />
-                                                    <Setter Property="Foreground" Value="LimeGreen" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Failed">
-                                                    <Setter Property="Kind" Value="CloseCircle" />
-                                                    <Setter Property="Foreground" Value="Tomato" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Cancelled">
-                                                    <Setter Property="Kind" Value="Cancel" />
-                                                    <Setter Property="Foreground" Value="Gray" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="Skipped">
-                                                    <Setter Property="Kind" Value="SkipNext" />
-                                                    <Setter Property="Foreground" Value="Gray" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </materialDesign:PackIcon.Style>
-                                </materialDesign:PackIcon>
+                            <ListBox ItemsSource="{Binding ActiveDownloads}"
+                                     ItemTemplate="{StaticResource DownloadItemTemplate}"
+                                     Style="{StaticResource MaterialDesignListBox}"
+                                     Background="Transparent"
+                                     VirtualizingStackPanel.IsVirtualizing="True"
+                                     VirtualizingStackPanel.ScrollUnit="Pixel"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                        </Grid>
+                    </TabItem>
 
-                                <!-- Track name + detail + progress bar -->
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding TrackName}" FontSize="14" />
-                                    <TextBlock Text="{Binding StatusDetail}" FontSize="11" Opacity="0.5"
-                                               MinHeight="16" />
-                                    <ProgressBar
-                                        Value="{Binding ProgressPercent, Mode=OneWay}"
-                                        Height="3"
-                                        Margin="0,4,0,0"
-                                        Opacity="{Binding IsActive, Converter={StaticResource BoolToOpacityConverter}}" />
-                                </StackPanel>
+                    <!-- Tab 2: Failed -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <TextBlock>
+                                <Run Text="Failed" />
+                                <Run Text="{Binding FailedCount, StringFormat=' ({0})', Mode=OneWay}" />
+                            </TextBlock>
+                        </TabItem.Header>
+                        <Grid Background="Transparent">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding FailedCount}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <materialDesign:PackIcon Kind="CheckCircleOutline"
+                                                         Width="48" Height="48"
+                                                         HorizontalAlignment="Center"
+                                                         Opacity="0.3" />
+                                <TextBlock Text="No failed downloads"
+                                           HorizontalAlignment="Center"
+                                           Opacity="0.4"
+                                           Margin="0,12,0,0" />
+                            </StackPanel>
 
-                                <!-- Status text -->
-                                <TextBlock
-                                    Grid.Column="2"
-                                    Text="{Binding StatusDisplay}"
-                                    VerticalAlignment="Center"
-                                    Opacity="0.7"
-                                    Margin="12,0,0,0"
-                                    MinWidth="70"
-                                    TextAlignment="Right" />
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                            <ListBox ItemsSource="{Binding FailedDownloads}"
+                                     ItemTemplate="{StaticResource DownloadItemTemplate}"
+                                     Style="{StaticResource MaterialDesignListBox}"
+                                     Background="Transparent"
+                                     VirtualizingStackPanel.IsVirtualizing="True"
+                                     VirtualizingStackPanel.ScrollUnit="Pixel"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                        </Grid>
+                    </TabItem>
+
+                    <!-- Tab 3: Done -->
+                    <TabItem>
+                        <TabItem.Header>
+                            <TextBlock>
+                                <Run Text="Done" />
+                                <Run Text="{Binding DoneCount, StringFormat=' ({0})', Mode=OneWay}" />
+                            </TextBlock>
+                        </TabItem.Header>
+                        <Grid Background="Transparent">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DoneCount}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <materialDesign:PackIcon Kind="MusicOff"
+                                                         Width="48" Height="48"
+                                                         HorizontalAlignment="Center"
+                                                         Opacity="0.3" />
+                                <TextBlock Text="No completed downloads yet"
+                                           HorizontalAlignment="Center"
+                                           Opacity="0.4"
+                                           Margin="0,12,0,0" />
+                            </StackPanel>
+
+                            <ListBox ItemsSource="{Binding DoneDownloads}"
+                                     ItemTemplate="{StaticResource DownloadItemTemplate}"
+                                     Style="{StaticResource MaterialDesignListBox}"
+                                     Background="Transparent"
+                                     VirtualizingStackPanel.IsVirtualizing="True"
+                                     VirtualizingStackPanel.ScrollUnit="Pixel"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                        </Grid>
+                    </TabItem>
+
+                </TabControl>
             </Grid>
         </materialDesign:Card>
 

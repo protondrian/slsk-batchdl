@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Windows.Data;
 using System.Windows.Shell;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -40,6 +41,13 @@ public partial class MainViewModel : ObservableObject
     private string _statusText = "Ready";
 
     public ObservableCollection<DownloadItemViewModel> Downloads { get; } = new();
+    public ListCollectionView ActiveDownloads { get; }
+    public ListCollectionView FailedDownloads { get; }
+    public ListCollectionView DoneDownloads { get; }
+
+    public int ActiveCount => ActiveDownloads.Count;
+    public int FailedCount => FailedDownloads.Count;
+    public int DoneCount => DoneDownloads.Count;
 
     public string[] AvailableFormats { get; } = ["MP3", "FLAC", "OGG", "M4A", "OPUS", "WAV"];
     public int[] AvailableBitrates { get; } = [128, 192, 256, 320];
@@ -56,10 +64,23 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel()
     {
+        ActiveDownloads = CreateFilteredView(item => item.SortOrder == 0);
+        FailedDownloads = CreateFilteredView(item => item.SortOrder == 1);
+        DoneDownloads   = CreateFilteredView(item => item.SortOrder == 2);
+
         var settings = _settingsService.Load();
         SelectedFormat = settings.PreferredFormat;
         PreferredBitrate = settings.PreferredBitrate;
         DownloadPath = settings.DownloadPath;
+    }
+
+    private ListCollectionView CreateFilteredView(Predicate<DownloadItemViewModel> filter)
+    {
+        var view = new ListCollectionView(Downloads);
+        view.Filter = o => filter((DownloadItemViewModel)o);
+        view.IsLiveFiltering = true;
+        view.LiveFilteringProperties.Add(nameof(DownloadItemViewModel.SortOrder));
+        return view;
     }
 
     public void ApplySettings(SettingsViewModel settingsVm)
@@ -181,6 +202,9 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CompletedCount));
         OnPropertyChanged(nameof(OverallProgress));
         OnPropertyChanged(nameof(TaskbarProgress));
+        OnPropertyChanged(nameof(ActiveCount));
+        OnPropertyChanged(nameof(FailedCount));
+        OnPropertyChanged(nameof(DoneCount));
 
         // Check if done
         if (!_downloadService.IsRunning)
@@ -235,6 +259,9 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CompletedCount));
         OnPropertyChanged(nameof(OverallProgress));
         OnPropertyChanged(nameof(TaskbarProgress));
+        OnPropertyChanged(nameof(ActiveCount));
+        OnPropertyChanged(nameof(FailedCount));
+        OnPropertyChanged(nameof(DoneCount));
         StatusText = $"Cancelled: {CompletedCount}/{TotalCount} tracks downloaded";
     }
 
